@@ -1,10 +1,9 @@
-# config/db_config.py
-
-db_config = {
+DB_CONFIG = {
     'host': 'localhost',
     'user': 'root',
     'password': 'TA**u2710',
-    'database': 'ecommerce'
+    'database': 'ecommerce',
+    'port': 3306
 }
-print("db_config loaded successfully")
 
+print("DB_CONFIG loaded successfully")

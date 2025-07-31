@@ -1,39 +1,96 @@
+from flask import Flask, jsonify
+import mysql.connector
 import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Add project root (parent of api/) to sys.path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from flask import Flask, jsonify
-from flask_cors import CORS
-import mysql.connector
-from config.db_config import db_config
+from config.db_config import DB_CONFIG
 
 app = Flask(__name__)
-CORS(app)
 
-# Use db_config dict for connection parameters
-db = mysql.connector.connect(**db_config)
-cursor = db.cursor(dictionary=True)
+# Create MySQL connection
+def get_db_connection():
+    return mysql.connector.connect(**DB_CONFIG)
+
 
 @app.route('/')
-def home():
-    return "Backend is running"
+def index():
+    return "Welcome to Think41 API!"
 
-@app.route('/products', methods=['GET'])
+
+# -------------------- PRODUCTS ENDPOINTS --------------------
+
+@app.route('/products')
 def get_products():
-    cursor.execute("SELECT id, name, retail_price FROM products LIMIT 20")
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM products")
     products = cursor.fetchall()
+    cursor.close()
+    conn.close()
     return jsonify(products)
 
-@app.route('/products/<int:product_id>', methods=['GET'])
+
+@app.route('/products/<int:product_id>')
 def get_product(product_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM products WHERE id = %s", (product_id,))
     product = cursor.fetchone()
+    cursor.close()
+    conn.close()
     if product:
         return jsonify(product)
     else:
         return jsonify({'error': 'Product not found'}), 404
+
+
+# -------------------- DEPARTMENT ENDPOINTS --------------------
+
+@app.route('/api/departments')
+def get_departments():
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM departments")
+    departments = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(departments)
+
+
+@app.route('/api/departments/<int:department_id>')
+def get_department_by_id(department_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM departments WHERE id = %s", (department_id,))
+    department = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if department:
+        return jsonify(department)
+    else:
+        return jsonify({'error': 'Department not found'}), 404
+
+
+@app.route('/api/departments/<int:department_id>/products')
+def get_products_by_department(department_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT p.* FROM products p
+        JOIN departments d ON p.department_id = d.id
+        WHERE d.id = %s
+    """, (department_id,))
+    products = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    if products:
+        return jsonify(products)
+    else:
+        return jsonify({'error': 'No products found for this department'}), 404
+
+
+# -------------------- MAIN --------------------
 
 if __name__ == '__main__':
     app.run(debug=True)
