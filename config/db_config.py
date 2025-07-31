@@ -6,3 +6,5 @@ db_config = {
     'password': 'TA**u2710',
     'database': 'ecommerce'
 }
+print("db_config loaded successfully")
+

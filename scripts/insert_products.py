@@ -1,51 +1,47 @@
-import pandas as pd
 import mysql.connector
-import os
-import sys
-
-# Add the parent directory to the path so we can import from config
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config.db_config import db_config
 
-# Load the CSV file
-csv_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'products.csv')
-df = pd.read_csv(csv_file)
 
-# Replace NaNs with None (NULL in SQL)
-df = df.where(pd.notnull(df), None)
+# Sample data (replace with your actual product data)
+products = [
+    {"name": "Shampoo", "price": 10.0, "department": "Beauty"},
+    {"name": "Football", "price": 25.0, "department": "Sports"},
+    {"name": "Lipstick", "price": 12.0, "department": "Beauty"},
+    {"name": "Tennis Racket", "price": 50.0, "department": "Sports"},
+]
 
-# Connect to MySQL
-try:
-    connection = mysql.connector.connect(**db_config)
-    cursor = connection.cursor()
+db = mysql.connector.connect(**DB_CONFIG)
+cursor = db.cursor()
 
-    insert_query = """
-        INSERT INTO products (
-            id, cost, category, name, brand,
-            retail_price, department, sku, distribution_center_id
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """
+# Step 1: Insert unique departments
+departments = list(set(p["department"] for p in products))
+department_ids = {}
 
-    for index, row in df.iterrows():
-        cursor.execute(insert_query, (
-            row['id'],
-            row['cost'],
-            row['category'],
-            row['name'],
-            row['brand'],
-            row['retail_price'],
-            row['department'],
-            row['sku'],
-            row['distribution_center_id']
-        ))
+for dept in departments:
+    cursor.execute("INSERT IGNORE INTO departments (name) VALUES (%s)", (dept,))
+    db.commit()
+    cursor.execute("SELECT id FROM departments WHERE name = %s", (dept,))
+    department_ids[dept] = cursor.fetchone()[0]
 
-    connection.commit()
-    print("✅ All rows inserted successfully.")
+# Step 2: Update products table (if not already updated)
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS products (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255),
+        price FLOAT,
+        department_id INT,
+        FOREIGN KEY (department_id) REFERENCES departments(id)
+    )
+""")
 
-except mysql.connector.Error as err:
-    print(f"❌ Error: {err}")
-finally:
-    if 'cursor' in locals():
-        cursor.close()
-    if 'connection' in locals() and connection.is_connected():
-        connection.close()
+# Step 3: Insert products with department_id
+for product in products:
+    dept_id = department_ids[product["department"]]
+    cursor.execute(
+        "INSERT INTO products (name, price, department_id) VALUES (%s, %s, %s)",
+        (product["name"], product["price"], dept_id)
+    )
+
+db.commit()
+cursor.close()
+db.close()

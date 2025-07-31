@@ -1,16 +1,19 @@
+import sys
+import os
+
+# Add project root (parent of api/) to sys.path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 import mysql.connector
+from config.db_config import db_config
 
 app = Flask(__name__)
 CORS(app)
 
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="TA**u2710",
-    database="ecommerce"
-)
+# Use db_config dict for connection parameters
+db = mysql.connector.connect(**db_config)
 cursor = db.cursor(dictionary=True)
 
 @app.route('/')
