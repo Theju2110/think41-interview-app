@@ -7,6 +7,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from config.db_config import DB_CONFIG
 
 app = Flask(__name__)
+from flask_cors import CORS
+CORS(app)
 
 # Create MySQL connection
 def get_db_connection():
